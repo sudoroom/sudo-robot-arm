@@ -85,6 +85,8 @@ class Point(object):
         return ((self.x - other.x)**2 + (self.y - other.y)**2 + (self.z - other.z)**2) ** 0.5
     def __repr__(self):
         return '<%9.2f %9.2f %9.2f>' % (self.x, self.y, self.z)
+    def asList(self):
+        return [self.x, self.y, self.z]
 
 
 # # example usage:
@@ -181,7 +183,7 @@ def generateAllAngles():
                 T = 0
                 yield (S, L, U, R, B, T)
 
-def getAnglesFromPoint(targetPoint):
+def getAnglesAndDistFromPoint(targetPoint):
     """Search through combinations of angles and return the angles
     that put the robot's finger closest to targetPoint.
     Currently this is a very slow brute force search.
@@ -195,7 +197,7 @@ def getAnglesFromPoint(targetPoint):
         if dist < bestDist:
             bestDist = dist
             bestAngles = angles
-    return bestAngles
+    return (bestAngles, bestDist)
 
 
 #================================================================================
@@ -203,8 +205,8 @@ def getAnglesFromPoint(targetPoint):
 
 def helpAndQuit():
     print 'Usage:'
-    print '    robot-coords.py --angles 1 2 3 4 5 6   // convert joint angles to 3d point'
-    print '    robot-coords.py --point 1 2 3          // convert 3d point to joint angles'
+    print '    robot-coords.py --angles 1 2 3 4 5 6      // convert joint angles to 3d point'
+    print '    robot-coords.py --point 1 2 3 [--verbose] // convert 3d point to joint angles'
     print 'Units:'
     print '    joint angles: degrees'
     print '    3d point: meters'
@@ -212,22 +214,30 @@ def helpAndQuit():
 
 if __name__ == '__main__':
 
+    # process command line arguments
     ARGS = sys.argv[1:]
     if len(ARGS) == 0 or ARGS[0] not in ('--angles', '--point', '--test'):
         helpAndQuit()
     CMD = ARGS[0]
+    VERBOSE = '--verbose' in ARGS or '-v' in ARGS
+    if VERBOSE:
+        ARGS = [arg for arg in ARGS if arg != '--verbose' and arg != '-v']
     COORDS = [float(arg) for arg in ARGS[1:]]
 
     if CMD == '--angles':
-        print getPointFromAngles(COORDS)
+        print getPointFromAngles(COORDS).asList()
     elif CMD == '--point':
-        print getAnglesFromPoint(Point(COORDS[0], COORDS[1], COORDS[2]))
+        angles, dist = getAnglesAndDistFromPoint(Point(COORDS[0], COORDS[1], COORDS[2]))
+        if VERBOSE:
+            print 'distance from robot finger to target point: %s' % dist
+        print list(angles)
     elif CMD == '--test':
         # this is the rest position and should give all zero angles
         targetPoint = Point(0, 1.162, 1.022)
         print 'target point: %s' % targetPoint
         print 'finding angles to hit that point...'
-        angles = getAnglesFromPoint(targetPoint)
+        angles, dist = getAnglesAndDistFromPoint(targetPoint)
+        print 'dist: %s' % dist
         print 'angles: %s' % repr(angles)
     else:
         print 'unknown command'
