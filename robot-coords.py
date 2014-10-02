@@ -2,6 +2,7 @@
 
 from __future__ import division
 import math
+import sys
 
 """
 Code to generate coordinates for Sudo Room's robot arm
@@ -99,50 +100,59 @@ class Point(object):
 
 def getPointFromAngles(angles):
     """Given a list of 6 joint angles in degrees (S, L, U, R, B, T), 
-    return the 3d point at the end of the robot arm.
+    return the 3d point at the end of the robot arm, in meters.
 
     If you're sitting "behind" the robot arm so it's reaching away from you,
         x is sideways
         y is up
         z is forwards from the base towards the hand
+
+    I'm not sure which way the rotation goes -- needs testing.
+
+    The "rest position" of the robot in this code, with all angles set to zero:
+        Lower arm is vertical
+        Forearm is horizontal
+        Forearm twist is set so that the wrist moves up and down, not side to side
+        The wrist is in line with the forearm
+    Don't know yet how this translates to native robot "pulse count" angles.
     """
     S, L, U, R, B, T = angles
 
-    # apply transformations backwards, hand first
+    # apply transformations in backwards order, hand first
 
     # TODO: this gives the point at the end of the "finger", where
     # tools attach.  We also need to take into account the offset from
     # the finger to the end of the tool.
 
-    # [apply tool offset here]
-
-    # these units are in tenths of a centimeter
-    # 1 meter = 1000 units
 
     # measurements from the diagram on page 19 of
     # http://spaz.org/~jake/robot/479951-4-K10S_manual.pdf
+    # in that document, units are in tenths of a centimeter (1 meter = 1000 units)
+    # here we use meters
     # some measurements are estimated and need to be physically measured
+
+    # [apply tool offset here]
 
     p = Point(0,0,0)
     p = p.rotateZ(T)                        # finger twist
     # print 'finger twist      ', p
-    p = p.translate(Point(0, 0, 100))       # wrist -> finger
+    p = p.translate(Point(0, 0, 0.100))       # wrist -> finger
     # print 'wrist -> finger   ', p
     p = p.rotateX(B)                        # wrist pitch
     # print 'wrist pitch       ', p
-    p = p.translate(Point(0, 0, 770/2))     # forearm -> wrist
+    p = p.translate(Point(0, 0, 0.770/2))     # forearm -> wrist
     # print 'forearm -> wrist  ', p
     p = p.rotateZ(R)                        # forearm twist
     # print 'forearm twist     ', p
-    p = p.translate(Point(0, 77, 770/2))    # elbow -> forearm
+    p = p.translate(Point(0, 0.077, 0.770/2))    # elbow -> forearm
     # print 'elbow -> forearm  ', p
     p = p.rotateX(U)                        # elbow joint
     # print 'elbow angle       ', p
-    p = p.translate(Point(0, 500, 0))       # shoulder -> elbow
+    p = p.translate(Point(0, 0.500, 0))       # shoulder -> elbow
     # print 'shoulder -> elbow ', p
     p = p.rotateX(L)                        # shoulder joint
     # print 'shoulder angle    ', p
-    p = p.translate(Point(0, 585, 152))     # base -> shoulder
+    p = p.translate(Point(0, 0.585, 0.152))     # base -> shoulder
     # print 'base -> shoulder  ', p
     p = p.rotateY(S)                        # base yaw
     # print 'base yaw          ', p
@@ -191,15 +201,37 @@ def getAnglesFromPoint(targetPoint):
 #================================================================================
 # MAIN
 
-if __name__ == '__main__':
-    # getPointFromAngles((0,0,0,0,0,0))
+def helpAndQuit():
+    print 'Usage:'
+    print '    robot-coords.py --angles 1 2 3 4 5 6   // convert joint angles to 3d point'
+    print '    robot-coords.py --point 1 2 3          // convert 3d point to joint angles'
+    print 'Units:'
+    print '    joint angles: degrees'
+    print '    3d point: meters'
+    sys.exit(0)
 
-    # this is the rest position and should give all zero angles
-    targetPoint = Point(0, 1162, 1022)
-    print 'target point: %s' % targetPoint
-    print 'finding angles to hit that point...'
-    angles = getAnglesFromPoint(targetPoint)
-    print 'angles: %s' % repr(angles)
+if __name__ == '__main__':
+
+    ARGS = sys.argv[1:]
+    if len(ARGS) == 0 or ARGS[0] not in ('--angles', '--point', '--test'):
+        helpAndQuit()
+    CMD = ARGS[0]
+    COORDS = [float(arg) for arg in ARGS[1:]]
+
+    if CMD == '--angles':
+        print getPointFromAngles(COORDS)
+    elif CMD == '--point':
+        print getAnglesFromPoint(Point(COORDS[0], COORDS[1], COORDS[2]))
+    elif CMD == '--test':
+        # this is the rest position and should give all zero angles
+        targetPoint = Point(0, 1.162, 1.022)
+        print 'target point: %s' % targetPoint
+        print 'finding angles to hit that point...'
+        angles = getAnglesFromPoint(targetPoint)
+        print 'angles: %s' % repr(angles)
+    else:
+        print 'unknown command'
+        helpAndQuit()
 
 
 
